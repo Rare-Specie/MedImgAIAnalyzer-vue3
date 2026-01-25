@@ -1,18 +1,26 @@
 # MedImgAiAnalyzer的前端代码仓库
 
-### **ui库使用NaiveUI**
-### **图标使用NaiveUI配套的xicons**
+#### **ui库使用NaiveUI**
+#### **图标使用NaiveUI配套的xicons**
 
 ---
 
-## 快速上手编辑此项目
+# 文档
+
+
+- [前端项目介绍.md](docs/前端项目介绍.md)
+- [临时api文档](docs/api)
+
+---
+
+## 快速上手vue3来编辑此项目
 
 请见[这个](MedAnalyzer/README.md)文档  
 可以通过[这个](https://www.bilibili.com/video/BV13tjqzmEDZ)视频快速上手
 
 ---
 
-## vue3 的 基础文件构成
+### vue3 的 基础文件构成
 ```
 your-vue3-project/          # 项目根目录
 ├── node_modules/           # 项目依赖包（npm install 生成）
@@ -33,7 +41,7 @@ your-vue3-project/          # 项目根目录
 │   │   └── HomeView.vue
 │   ├── App.vue             # 根组件（所有页面/组件的父容器）
 │   └── main.js             # 项目入口文件（创建、挂载 Vue 实例）
-├── .gitignore              # Git 忽略文件配置（如 node_modules、dist 等）
+├── .gitignore              # Git 忽略文件配置（如 node_modules、dist 等）注：被我放到根目录了
 ├── index.html              # 项目入口 HTML（Vite 特有，替代 Vue2 的 public/index.html 核心作用）
 ├── package.json            # 项目配置文件（依赖、脚本命令、项目信息）
 ├── package-lock.json       # 依赖版本锁定文件（确保多人开发依赖版本一致）
