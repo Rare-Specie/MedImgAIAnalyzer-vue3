@@ -90,6 +90,47 @@ html[data-theme="light"] body {
   z-index: 9100 !important;
 }
 
+/* Fallback: when a modal is shown but (for any reason) the component
+   renders inline instead of being teleported, force it to behave like a
+   true overlay so it appears centered and above the app. This fixes the
+   modal-appears-at-bottom symptom observed in the screenshot. */
+body.has-modal .n-dialog__wrapper {
+  position: fixed !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 9500 !important;
+  pointer-events: auto !important;
+  background: rgba(2, 6, 23, 0.35) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+body.has-modal .n-dialog {
+  position: relative !important;
+  width: auto !important;
+  max-width: min(92vw, 560px) !important;
+  margin: 0 16px !important;
+}
+
+/* Naive UI modal mask */
+.n-modal-mask,
+.n-dialog__mask {
+  background: rgba(2, 6, 23, 0.35) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* Ensure dialog inner box doesn't expand the document flow */
+body.has-modal .n-dialog__body,
+body.has-modal .n-dialog__content {
+  position: relative !important;
+  max-height: 85vh !important;
+  overflow: auto !important;
+}
+
+
 *,
 *::before,
 *::after {

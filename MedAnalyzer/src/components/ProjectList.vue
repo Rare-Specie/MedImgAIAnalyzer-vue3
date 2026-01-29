@@ -22,6 +22,9 @@
 <script setup lang="ts">
 import { type Project } from '../api/projects'
 const props = defineProps<{ projects: Project[] }>()
+const emit = defineEmits<{
+  (e: 'select', project: Project): void
+}>()
 </script>
 
 <style scoped>

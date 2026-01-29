@@ -15,8 +15,6 @@
         <router-view />
       </main>
     </div>
-
-    <footer class="app-footer">© MedImg AI — demo</footer>
   </div>
 </template>
 
@@ -31,6 +29,6 @@
 .nav-left{font-weight:700}
 .nav-right a{margin-left:16px;color:var(--muted);text-decoration:none}
 /* make the page body full-bleed and let children control inner width */
-.page-body{flex:1;padding:24px;width:100%;min-height:calc(100vh - 64px - 36px);display:flex;flex-direction:column}
+.page-body{flex:1;padding:24px;width:100%;min-height:0;height:calc(100vh - 64px);display:flex;flex-direction:column;overflow:auto}
 .app-footer{height:36px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;border-top:1px solid #f3f4f6}
 </style>

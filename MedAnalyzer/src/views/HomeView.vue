@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { listProjects, deleteProject, type Project } from '../api/projects'
+import { listProjects, deleteProject, updateProjectNote, type Project } from '../api/projects'
 import NewProjectModal from '../components/NewProjectModal.vue'
 
 const router = useRouter()
@@ -12,6 +12,9 @@ const showNew = ref(false)
 const deleting = ref(false)
 const showDeleteConfirm = ref(false)
 const deleteConfirm = ref('')
+const isEditingNote = ref(false)
+const savingNote = ref(false)
+const noteDraft = ref('')
 
 async function load() {
   loading.value = true
@@ -52,9 +55,51 @@ function select(p: Project) {
   selected.value = p
 }
 
+watch(selected, (next) => {
+  if (!next) {
+    isEditingNote.value = false
+    noteDraft.value = ''
+    return
+  }
+  isEditingNote.value = false
+  showDeleteConfirm.value = false
+  deleteConfirm.value = ''
+  noteDraft.value = next.note || ''
+})
+
 function openProject(p: Project) {
   // 跳转并传递 uuid
   router.push({ name: 'project', params: { uuid: p.uuid } })
+}
+
+function startEditNote() {
+  if (!selected.value) return
+  noteDraft.value = selected.value.note || ''
+  isEditingNote.value = true
+  showDeleteConfirm.value = false
+  deleteConfirm.value = ''
+}
+
+function cancelEditNote() {
+  if (!selected.value) return
+  noteDraft.value = selected.value.note || ''
+  isEditingNote.value = false
+}
+
+async function saveNote() {
+  if (!selected.value) return
+  savingNote.value = true
+  try {
+    const updated = await updateProjectNote(selected.value.uuid, noteDraft.value)
+    selected.value = updated
+    projects.value = projects.value.map((p) => (p.uuid === updated.uuid ? updated : p))
+    isEditingNote.value = false
+  } catch (err: any) {
+    console.error(err)
+    alert('修改备注失败：' + (err?.message || err))
+  } finally {
+    savingNote.value = false
+  }
 }
 </script>
 
@@ -71,7 +116,14 @@ function openProject(p: Project) {
       <section class="selector-area">
         <div class="list">
           <div v-if="loading" class="empty" role="status" aria-live="polite">正在加载项目…</div>
-          <div v-else-if="projects.length === 0" class="empty" role="status" aria-live="polite">暂无项目</div>
+          <div v-else-if="projects.length === 0" class="empty" role="status" aria-live="polite">
+            <div class="empty-block">
+              <p>暂无项目，请先创建项目</p>
+              <n-space>
+                <n-button size="small" class="primary-cta" @click="showNew = true">新建项目</n-button>
+              </n-space>
+            </div>
+          </div>
           <ul v-else>
             <li
               v-for="p in projects"
@@ -80,7 +132,8 @@ function openProject(p: Project) {
               @click="select(p)"
               tabindex="0"
               role="button"
-              :aria-selected="selected && selected.uuid===p.uuid"
+              :aria-selected="selected?.uuid === p.uuid"
+              :aria-controls="'project-detail'"
               @keydown.enter.prevent="select(p)"
             >
               <div class="row">
@@ -92,41 +145,60 @@ function openProject(p: Project) {
           </ul>
         </div>
 
-        <div class="detail" v-if="selected">
-          <div class="detail-scroll">
-            <h2>{{ selected.name }}</h2>
-            <div class="fields">
-              <div><strong>UUID：</strong>{{ selected.uuid }}</div>
-              <div><strong>创建时间：</strong>{{ new Date(selected.createdAt).toLocaleString() }}</div>
-              <div><strong>修改时间：</strong>{{ new Date(selected.updatedAt).toLocaleString() }}</div>
-              <div class="note"><strong>备注：</strong><pre>{{ selected.note || '—' }}</pre></div>
+
+
+        <!-- 详情面板：使用 transition 实现入场/出场动画（视觉折叠由 grid-template-columns 实现） -->
+        <transition name="detail-pop" mode="out-in" appear>
+          <div class="detail" id="project-detail" role="region" aria-label="项目详情" tabindex="-1">
+            <div class="detail-scroll">
+              <template v-if="selected">
+                <h2>{{ selected.name }}</h2>
+                <div class="fields">
+                  <div><strong>UUID：</strong>{{ selected.uuid }}</div>
+                  <div><strong>创建时间：</strong>{{ new Date(selected.createdAt).toLocaleString() }}</div>
+                  <div><strong>修改时间：</strong>{{ new Date(selected.updatedAt).toLocaleString() }}</div>
+                  <div class="note">
+                    <strong>备注：</strong>
+                    <template v-if="isEditingNote">
+                      <textarea v-model="noteDraft" class="note-edit" rows="6" />
+                    </template>
+                    <template v-else>
+                      <pre>{{ selected.note || '—' }}</pre>
+                    </template>
+                  </div>
+                </div>
+
+                <div class="detail-actions">
+                  <template v-if="!isEditingNote">
+                    <n-button class="btn btn-danger" size="small" secondary @click="showDeleteConfirm = true; deleteConfirm = ''">删除项目</n-button>
+                    <n-button class="btn btn-primary btn-open" size="small" @click="openProject(selected)">打开项目</n-button>
+                    <n-button class="btn btn-secondary btn-edit" size="small" tertiary @click="startEditNote">修改备注</n-button>
+                  </template>
+                  <template v-else>
+                    <n-button class="btn btn-primary btn-save" size="small" :loading="savingNote" @click="saveNote">保存备注</n-button>
+                    <n-button class="btn btn-secondary btn-cancel" size="small" tertiary :disabled="savingNote" @click="cancelEditNote">取消修改</n-button>
+                  </template>
+                </div>
+
+                <!-- 删除确认区（内联实现，按 spec 要求输入 是 或 yes） -->
+                <div class="confirm-box" v-show="showDeleteConfirm">
+                  <div class="confirm-row"><strong>是否要删除？</strong></div>
+                  <div class="confirm-row">请输入 <code>是</code> 或 <code>yes</code> 以确认：</div>
+                  <input v-model="deleteConfirm" placeholder="输入 是 或 yes" />
+                  <div class="confirm-row buttons">
+                    <button class="btn" @click="showDeleteConfirm = false; deleteConfirm = ''">取消</button>
+                    <button class="btn btn-danger" :disabled="deleting" @click="confirmDelete">确认删除</button>
+                  </div>
+                </div>
+              </template>
+              <template v-else>
+                <div class="empty-state" role="status" aria-live="polite">
+                  <p class="empty-title">请打开项目</p>
+                </div>
+              </template>
             </div>
           </div>
-
-          <div class="detail-actions">
-            <n-button class="btn btn-danger" size="small" secondary @click="showDeleteConfirm = true; deleteConfirm = ''">删除项目</n-button>
-            <n-button class="btn btn-primary" size="small" @click="openProject(selected)">打开项目</n-button>
-          </div> 
-
-          <!-- 删除确认区（内联实现，按 spec 要求输入 是 或 yes） -->
-          <div class="confirm-box" v-show="showDeleteConfirm">
-            <div class="confirm-row"><strong>是否要删除？</strong></div>
-            <div class="confirm-row">请输入 <code>是</code> 或 <code>yes</code> 以确认：</div>
-            <input v-model="deleteConfirm" placeholder="输入 是 或 yes" />
-            <div class="confirm-row buttons">
-              <button class="btn" @click="showDeleteConfirm = false; deleteConfirm = ''">取消</button>
-              <button class="btn btn-danger" :disabled="deleting" @click="confirmDelete">确认删除</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="detail empty-detail" v-else>
-          <div class="empty-state" role="status" aria-live="polite">
-            <p class="empty-title">暂无项目</p>
-            <p class="empty-sub">创建第一个项目以开始分析，或从已有项目导入数据。</p>
-            <n-button class="primary-cta" size="large" @click="showNew = true">创建第一个项目</n-button> 
-          </div>
-        </div>
+        </transition>
       </section>
     </div>
 
@@ -135,12 +207,12 @@ function openProject(p: Project) {
 </template>
 
 <style scoped>
-.home-root{display:flex;flex-direction:column;gap:20px;height:100%;max-width:1100px;margin:0 auto;padding:8px 6px;min-height:calc(100vh - 64px - 36px)}
+.home-root{display:flex;flex-direction:column;gap:20px;height:100%;max-width:1100px;margin:0 auto;padding:8px 6px;min-height:0;width:100%}
 .heading{display:flex;align-items:center;justify-content:space-between}
 .heading h1{margin:0;font-size:22px}
 .actions{display:flex;gap:12px}
 /* 居中卡片：固定 min-height（视觉更紧凑）并在非常高的屏幕上限制最大高度 */
-.card-wrap{display:flex;align-items:flex-start;justify-content:center;min-height:0}
+.card-wrap{display:flex;align-items:stretch;justify-content:center;flex:1;min-height:0;width:100%}
 /* 保持外层卡片高度稳定，内部滚动以避免切换项目时外框抖动 */
 .selector-area{
   display:grid;
@@ -153,10 +225,9 @@ function openProject(p: Project) {
   box-shadow:0 10px 30px rgba(2,6,23,0.12);
   align-items:stretch;
   flex:1 1 auto;
-  /* 保持稳定高度（响应式）——内容超出时使用内部滚动而非外框伸缩 */
-  height:clamp(520px, 55vh, 760px);
-  max-height:calc(100vh - 220px);
+  height:100%;
   width:100%;
+  min-width:100%;
   max-width:1100px;
   margin:0 auto;
   overflow:hidden; /* 内部区域负责滚动 */
@@ -167,7 +238,24 @@ function openProject(p: Project) {
   /* containment improves layout stability for complex children */
   contain: layout;
 }
-.list{border-right:1px solid var(--color-border);padding-right:16px;display:flex;flex-direction:column;min-width:0}
+.list{border-right:1px solid var(--color-border);padding-right:16px;display:flex;flex-direction:column;min-width:0;min-height:0}
+
+/* 详情面板：入场使用位移+淡入，出场使用淡出+反向位移 */
+.selector-area .detail{will-change:transform,opacity;overflow:hidden;display:flex;flex-direction:column;min-height:0;height:100%}
+.detail-pop-enter-from{opacity:0;transform:translateX(14px) scale(.996)}
+.detail-pop-enter-active{transition:opacity 200ms ease, transform 260ms cubic-bezier(.2,.9,.2,1)}
+.detail-pop-enter-to{opacity:1;transform:none}
+.detail-pop-leave-from{opacity:1;transform:none}
+.detail-pop-leave-active{transition:opacity 180ms ease, transform 180ms ease}
+.detail-pop-leave-to{opacity:0;transform:translateX(10px) scale(.996);pointer-events:none}
+
+/* 可复用的无障碍隐藏类（保留在 DOM 中以便屏读器访问） */
+
+/* Respect user preference for reduced motion */
+@media (prefers-reduced-motion: reduce){
+  .selector-area, .detail-pop-enter-active, .detail-pop-leave-active{transition:none !important}
+  .detail-pop-enter-from, .detail-pop-leave-to{transform:none;opacity:1}
+}
 .list .empty{flex:1;display:flex;align-items:center;justify-content:center}
 
 /* allow detail column to shrink without forcing the grid wider */
@@ -180,7 +268,7 @@ function openProject(p: Project) {
 .list li:active{transform:none}
 
 /* prevent detail area scrollbar appearance from shifting layout */
-.detail-scroll{flex:1;overflow:auto;padding-right:8px;min-height:0;scrollbar-gutter:stable}
+.detail-scroll{flex:1;overflow:auto;padding-right:8px;min-height:0;max-height:100%;scrollbar-gutter:stable}
 .detail{transition: none; /* avoid layout/transform transitions on detail content changes */}
 .row{display:flex;justify-content:space-between;align-items:center}
 .name{font-weight:600;color:var(--color-heading)}
@@ -198,20 +286,19 @@ function openProject(p: Project) {
 @media (min-width:1400px){
   .selector-area{grid-template-columns:480px minmax(0, 1fr)}
 }
-
-/* 响应式：窄屏时改为单列 */
-@media (max-width:820px){
-  .selector-area{grid-template-columns:1fr;padding:14px;max-width:100%}
-  .list{border-right:0;padding-right:0;margin-bottom:12px}
-}
 .detail .fields{margin-top:12px;display:flex;flex-direction:column;gap:8px}
-.detail .note pre{white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:6px}
+.detail .note pre{white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:6px;font-size:13px;line-height:1.5}
+.detail .note .note-edit{width:100%;resize:vertical;background:#f8fafc;border:1px solid #e6e9ef;border-radius:6px;padding:10px;min-height:120px;font-family:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap}
 .detail-actions{display:flex;gap:12px;position:sticky;bottom:14px;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.8));padding-top:12px}
 .btn{padding:8px 12px;border-radius:6px;border:1px solid #e6e9ef;background:#fff;cursor:pointer;transition:background-color 120ms ease, box-shadow 120ms ease;transform:none}
 .btn:active{transform:none}
 .btn-primary{background:var(--accent);color:#fff;border-color:rgba(59,130,246,0.8)}
 .btn-secondary{background:transparent;border:1px solid #e6e9ef}
-.btn-danger{background:#ef4444;color:#fff;border-color:#ef4444}
+.btn-danger{background:#fff;color:#ef4444;border-color:#ef4444}
+.btn-open{border-color:#22c55e}
+.btn-save{border-color:#22c55e}
+.btn-edit{border-color:#93c5fd}
+.btn-cancel{border-color:#ef4444}
 .empty{color:rgba(75,85,99,0.9);padding:28px;text-align:center}
 .empty-detail{display:flex;align-items:center;justify-content:center;color:rgba(75,85,99,0.9)}
 .confirm-box{margin-top:18px;padding:12px;border-radius:8px;background:linear-gradient(180deg,#fff,#fff);box-shadow:0 1px 0 rgba(2,6,23,0.04)}
