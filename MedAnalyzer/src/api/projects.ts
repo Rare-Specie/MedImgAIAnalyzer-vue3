@@ -8,7 +8,7 @@ export type Project = {
 
 export type ProjectConfig = {
   uuid: string
-  raw: 'png' | 'npz' | 'dcm' | 'nii' | false
+  raw: 'png' | 'npz' | 'markednpz' | 'dcm' | 'nii' | false
   nii: true | false | 'raw'
   dcm: true | false | 'raw'
   semi: true | false

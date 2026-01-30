@@ -19,7 +19,7 @@
         <div v-if="loading" class="state">正在加载项目信息…</div>
         <div v-else-if="error" class="state error">加载失败：{{ error }}</div>
         <div v-else class="dev-grid">
-          <n-card size="small" class="panel" title="info.json（项目信息）">
+          <n-card size="small" class="panel" title="info.json（项目信息）（缓存-请刷新后查看最新内容）">
             <div class="kv-list">
               <div class="kv">
                 <div class="kv-label">UUID</div>
@@ -44,7 +44,7 @@
             </div>
           </n-card>
 
-          <n-card size="small" class="panel" title="project.json（项目配置）">
+          <n-card size="small" class="panel" title="project.json（项目配置）（缓存-请刷新后查看最新内容）">
             <div class="kv-list">
               <div v-for="field in projectConfigFields" :key="field.key" class="kv">
                 <div class="kv-label">{{ field.label }}</div>
@@ -57,53 +57,10 @@
       </div>
     </section>
 
-    <section class="module">
-      <div class="module-head">
-        <h2>预处理</h2>
-        <n-tag size="small" type="warning" :bordered="false">开发中</n-tag>
-      </div>
-      <div class="module-body">
-        <div class="placeholder">
-          <div v-for="index in 20" :key="index" class="placeholder-line">正在开发中</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="module">
-      <div class="module-head">
-        <h2>Ai分析</h2>
-        <n-tag size="small" type="warning" :bordered="false">开发中</n-tag>
-      </div>
-      <div class="module-body">
-        <div class="placeholder">
-          <div v-for="index in 20" :key="index" class="placeholder-line">正在开发中</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="module">
-      <div class="module-head">
-        <h2>三维重建</h2>
-        <n-tag size="small" type="warning" :bordered="false">开发中</n-tag>
-      </div>
-      <div class="module-body">
-        <div class="placeholder">
-          <div v-for="index in 20" :key="index" class="placeholder-line">正在开发中</div>
-        </div>
-      </div>
-    </section>
-
-    <section class="module">
-      <div class="module-head">
-        <h2>Ai问诊</h2>
-        <n-tag size="small" type="warning" :bordered="false">开发中</n-tag>
-      </div>
-      <div class="module-body">
-        <div class="placeholder">
-          <div v-for="index in 20" :key="index" class="placeholder-line">正在开发中</div>
-        </div>
-      </div>
-    </section>
+    <PreprocessModule :uuid="props.uuid" />
+    <AiAnalysisModule />
+    <ReconstructionModule />
+    <AiConsultModule />
   </div>
 </template>
 
@@ -111,6 +68,10 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { getProject, getProjectJson, type Project, type ProjectConfig } from '../api/projects'
+import PreprocessModule from '../components/PreprocessModule.vue'
+import AiAnalysisModule from '../components/AiAnalysisModule.vue'
+import ReconstructionModule from '../components/ReconstructionModule.vue'
+import AiConsultModule from '../components/AiConsultModule.vue'
 
 const props = defineProps<{ uuid: string }>()
 const router = useRouter()
@@ -189,8 +150,6 @@ onMounted(load)
 .kv-label{font-size:12px;color:#64748b;font-weight:600}
 .kv-value{font-size:13px;color:#1f2937}
 .mono{white-space:pre-wrap;background:#f8fafc;padding:10px;border-radius:6px;font-size:12px;line-height:1.5;margin:0}
-.placeholder{border:1px dashed var(--color-border);background:#f8fafc;border-radius:10px;padding:18px;color:#64748b;display:flex;flex-direction:column;gap:6px}
-.placeholder-line{padding:6px 8px;border-radius:6px;background:#ffffff;box-shadow:inset 0 0 0 1px rgba(148,163,184,0.24)}
 .tail{margin-top:12px;color:#475569;font-size:13px}
 @media (max-width: 900px){
   .dev-grid{grid-template-columns:1fr}
