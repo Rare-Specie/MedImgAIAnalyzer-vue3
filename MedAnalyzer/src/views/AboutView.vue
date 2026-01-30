@@ -1,6 +1,6 @@
 <template>
   <div class="about">
-    <h1>This is an about page</h1>
+    <h1>啊西噶椰果奶龙</h1>
   </div>
 </template>
 
