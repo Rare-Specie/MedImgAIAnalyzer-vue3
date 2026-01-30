@@ -72,6 +72,18 @@ function openProject(p: Project) {
   router.push({ name: 'project', params: { uuid: p.uuid } })
 }
 
+function handleCreated(project: Project) {
+  projects.value = [project, ...projects.value.filter((p) => p.uuid !== project.uuid)].sort(
+    (a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt),
+  )
+  selected.value = project
+}
+
+function handleEnter(project: Project) {
+  handleCreated(project)
+  openProject(project)
+}
+
 function startEditNote() {
   if (!selected.value) return
   noteDraft.value = selected.value.note || ''
@@ -151,7 +163,10 @@ async function saveNote() {
               <template v-if="selected">
                 <h2>{{ selected.name }}</h2>
                 <div class="fields">
-                  <div><strong>UUID：</strong>{{ selected.uuid }}</div>
+                  <div class="uuid">
+                    <strong>UUID：</strong>
+                    <pre class="note-pre">{{ selected.uuid }}</pre>
+                  </div>
                   <div><strong>创建时间：</strong>{{ new Date(selected.createdAt).toLocaleString() }}</div>
                   <div><strong>修改时间：</strong>{{ new Date(selected.updatedAt).toLocaleString() }}</div>
                   <div class="note">
@@ -160,7 +175,7 @@ async function saveNote() {
                       <textarea v-model="noteDraft" class="note-edit" rows="6" />
                     </template>
                     <template v-else>
-                      <pre>{{ selected.note || '—' }}</pre>
+                      <pre class="note-pre">{{ selected.note || '—' }}</pre>
                     </template>
                   </div>
                 </div>
@@ -199,7 +214,7 @@ async function saveNote() {
       </section>
     </div>
 
-    <NewProjectModal v-model:show="showNew" />
+    <NewProjectModal v-model:show="showNew" @created="handleCreated" @enter="handleEnter" />
   </div>
 </template>
 
@@ -265,7 +280,7 @@ async function saveNote() {
 .list li:active{transform:none}
 
 /* prevent detail area scrollbar appearance from shifting layout */
-.detail-scroll{flex:1;overflow:auto;padding-right:8px;min-height:0;max-height:100%;scrollbar-gutter:stable}
+.detail-scroll{flex:1;overflow:auto;padding-right:8px;min-height:0;max-height:100%;scrollbar-gutter:stable;padding-bottom:72px}
 .detail{transition: none; /* avoid layout/transform transitions on detail content changes */}
 .row{display:flex;justify-content:space-between;align-items:center}
 .name{font-weight:600;color:var(--color-heading)}
@@ -284,9 +299,10 @@ async function saveNote() {
   .selector-area{grid-template-columns:480px minmax(0, 1fr)}
 }
 .detail .fields{margin-top:12px;display:flex;flex-direction:column;gap:8px}
-.detail .note pre{white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:6px;font-size:13px;line-height:1.5}
+.note-pre{white-space:pre-wrap;background:#f8fafc;padding:12px;border-radius:6px;font-size:13px;line-height:1.5;margin:6px 0 0}
 .detail .note .note-edit{width:100%;resize:vertical;background:#f8fafc;border:1px solid #e6e9ef;border-radius:6px;padding:10px;min-height:120px;font-family:inherit;font-size:13px;line-height:1.5;white-space:pre-wrap}
-.detail-actions{display:flex;gap:12px;position:sticky;bottom:14px;background:linear-gradient(180deg,transparent,rgba(255,255,255,0.8));padding-top:12px}
+.detail-actions{display:flex;gap:12px;position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.85) 40%,#fff);padding:14px 0 8px;z-index:2}
+.detail-actions::after{content:"";position:absolute;left:0;right:0;bottom:-8px;height:8px;background:#fff}
 .btn{padding:8px 12px;border-radius:6px;border:1px solid #e6e9ef;background:#fff;cursor:pointer;transition:background-color 120ms ease, box-shadow 120ms ease;transform:none}
 .btn:active{transform:none}
 .btn-primary{background:var(--accent);color:#fff;border-color:rgba(59,130,246,0.8)}
