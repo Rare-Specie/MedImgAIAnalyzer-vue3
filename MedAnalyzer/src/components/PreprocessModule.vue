@@ -21,28 +21,41 @@
             </button>
           </template>
           <template v-else>
-            <div class="image-frame" :class="{ cropping: isCropping }">
-              <template v-if="pngList.length === 0">
-                <div class="upload-box">暂无 PNG 序列</div>
-              </template>
-              <template v-else>
-                <img class="base-image" :src="currentImageUrl" alt="png" />
-                <img v-if="showMarked" class="mark-image" :src="currentMarkedUrl" alt="marked" />
-                <div v-if="showCropOverlay" class="crop-overlay" :style="cropOverlayStyle"></div>
-              </template>
-            </div>
             <div class="player">
+              <div class="slider-label">{{ sliderIndicator }}</div>
               <n-slider
                 v-model:value="currentIndex"
                 :min="0"
                 :max="Math.max(0, pngList.length - 1)"
                 :step="1"
                 :disabled="pngList.length === 0"
+                :format-tooltip="false"
+                :tooltip="false"
                 class="slider"
               />
               <n-button size="small" secondary :disabled="pngList.length === 0" @click="togglePlay">
                 {{ isPlaying ? '暂停' : '播放' }}
               </n-button>
+            </div>
+            <div class="image-frame">
+              <template v-if="pngList.length === 0">
+                <div class="upload-box">暂无 PNG 序列</div>
+              </template>
+              <template v-else>
+                <div class="crop-window" :style="cropWindowStyle">
+                  <img class="base-image" :style="cropImageStyle" :src="currentImageUrl" alt="png" />
+                  <div v-if="showMarked" class="mark-layer">
+                    <img
+                      class="mark-image"
+                      :class="markFilterClass"
+                      :style="[cropImageStyle, markFilterStyle]"
+                      :src="currentMarkedUrl"
+                      alt="marked"
+                    />
+                  </div>
+                </div>
+                <div v-if="showCropOverlay" class="crop-overlay" :style="cropOverlayStyle"></div>
+              </template>
             </div>
             <div v-if="showCropHint" class="crop-hint">当前显示裁切过的影像-在裁切图片中可复原</div>
           </template>
@@ -63,8 +76,18 @@
               <n-divider />
               <n-button size="small" type="primary" @click="enterCrop">裁切图像</n-button>
               <n-button v-if="canToggleMark" size="small" secondary @click="toggleMark">
-                {{ showMarked ? '关闭标注显示' : '切换标注显示' }}
+                {{ showMarked ? '关闭标注显示' : '启用标注显示' }}
               </n-button>
+              <n-space v-if="canToggleMark" align="center" size="small">
+                <span class="mark-filter-label">标注滤镜</span>
+                <n-select
+                  v-model:value="markFilter"
+                  :options="markFilterOptions"
+                  size="small"
+                  class="mark-filter-select"
+                  :disabled="!showMarked"
+                />
+              </n-space>
             </n-space>
           </template>
 
@@ -144,7 +167,7 @@
       </div>
       <template #footer>
         <n-space justify="end">
-          <n-button tertiary :disabled="uploading" @click="cancelUpload">取消</n-button>
+          <n-button tertiary @click="cancelUpload">取消</n-button>
           <n-button type="primary" :disabled="!canConfirmUpload" @click="showConfirmModal = true">确定</n-button>
         </n-space>
       </template>
@@ -216,6 +239,13 @@ type UploadItem = {
   statusLabel: string
 }
 
+type CropValues = {
+  'semi-xL': number
+  'semi-xR': number
+  'semi-yL': number
+  'semi-yR': number
+}
+
 const props = defineProps<{ uuid: string }>()
 
 const projectConfig = ref<ProjectConfig | null>(null)
@@ -239,9 +269,14 @@ const downloadClosable = ref(true)
 const isCropping = ref(false)
 const savingCrop = ref(false)
 const showMarked = ref(false)
+const markFilter = ref<'green' | 'red' | 'blue' | 'rainbow' | 'off'>('green')
 const pollingTimer = ref<number | null>(null)
+const currentImageUrl = ref('')
+const currentMarkedUrl = ref('')
+const pngCache = new Map<string, string>()
+const markedCache = new Map<string, string>()
 
-const cropDraft = reactive({
+const cropDraft = reactive<CropValues>({
   'semi-xL': -1,
   'semi-xR': -1,
   'semi-yL': -1,
@@ -273,25 +308,25 @@ const canConfirmUpload = computed(() =>
   uploads.value.length > 0 && uploads.value.every((item) => item.status === 'done'),
 )
 
-const currentImageUrl = computed(() => {
-  if (!pngList.value.length) return ''
-  return `/api/project/${props.uuid}/png/${pngList.value[currentIndex.value]}`
+const sliderIndicator = computed(() => {
+  if (!pngList.value.length) return '0 / 0'
+  return `${currentIndex.value + 1} / ${pngList.value.length}`
 })
 
-const currentMarkedUrl = computed(() => {
-  if (!pngList.value.length) return ''
-  return `/api/project/${props.uuid}/markedpng/${pngList.value[currentIndex.value]}`
-})
+const isSemiActive = computed(() => (projectConfig.value ? projectConfig.value.semi !== false : false))
 
-const showCropOverlay = computed(() => {
-  if (isCropping.value) return true
-  return projectConfig.value ? projectConfig.value.semi !== false : false
-})
+const showCropOverlay = computed(() => isCropping.value || isSemiActive.value)
+const markFilterOptions = [
+  { label: '绿色', value: 'green' },
+  { label: '红色', value: 'red' },
+  { label: '蓝色', value: 'blue' },
+  { label: '彩色', value: 'rainbow' },
+  { label: '关闭', value: 'off' },
+]
 
-const cropOverlayStyle = computed(() => {
-  const size = 512
+function getActiveCropValues(): CropValues {
   const config = projectConfig.value
-  const values = isCropping.value
+  return isCropping.value
     ? cropDraft
     : {
         'semi-xL': config?.['semi-xL'] ?? -1,
@@ -299,10 +334,22 @@ const cropOverlayStyle = computed(() => {
         'semi-yL': config?.['semi-yL'] ?? -1,
         'semi-yR': config?.['semi-yR'] ?? -1,
       }
+}
+
+function normalizeCrop(values: CropValues) {
+  const size = 512
   const left = clampValue(values['semi-xL'], 0, size)
   const top = clampValue(values['semi-yL'], 0, size)
   const rightEdge = values['semi-xR'] === -1 ? size : clampValue(values['semi-xR'], 0, size)
   const bottomEdge = values['semi-yR'] === -1 ? size : clampValue(values['semi-yR'], 0, size)
+  const width = Math.max(0, rightEdge - left)
+  const height = Math.max(0, bottomEdge - top)
+  return { left, top, width, height, rightEdge, bottomEdge }
+}
+
+const cropOverlayStyle = computed(() => {
+  const { left, top, rightEdge, bottomEdge } = normalizeCrop(getActiveCropValues())
+  const size = 512
   const right = Math.max(0, size - rightEdge)
   const bottom = Math.max(0, size - bottomEdge)
   return {
@@ -313,9 +360,107 @@ const cropOverlayStyle = computed(() => {
   }
 })
 
+const cropWindowStyle = computed(() => {
+  if (!showCropOverlay.value) return { width: '100%', height: '100%' }
+  const { width, height } = normalizeCrop(getActiveCropValues())
+  return {
+    width: `${Math.max(1, width)}px`,
+    height: `${Math.max(1, height)}px`,
+  }
+})
+
+const cropImageStyle = computed(() => {
+  if (!showCropOverlay.value) return {}
+  const { left, top } = normalizeCrop(getActiveCropValues())
+  return {
+    transform: `translate(${-left}px, ${-top}px)`,
+  }
+})
+
 function clampValue(value: number, min: number, max: number) {
   if (value === -1) return 0
   return Math.min(Math.max(value, min), max)
+}
+
+const markFilterStyle = computed(() => {
+  switch (markFilter.value) {
+    case 'green':
+      return { filter: 'hue-rotate(110deg) saturate(200%) brightness(1.05)' }
+    case 'red':
+      return { filter: 'hue-rotate(330deg) saturate(220%) brightness(1.05)' }
+    case 'blue':
+      return { filter: 'hue-rotate(210deg) saturate(200%) brightness(1.05)' }
+    case 'rainbow':
+      return {}
+    case 'off':
+    default:
+      return {}
+  }
+})
+
+const markFilterClass = computed(() => (markFilter.value === 'rainbow' ? 'filter-rainbow' : ''))
+
+function toMarkedFilename(filename: string) {
+  const dotIndex = filename.lastIndexOf('.')
+  if (dotIndex === -1) return `${filename}_marked`
+  return `${filename.slice(0, dotIndex)}_marked${filename.slice(dotIndex)}`
+}
+
+function buildPngUrl(filename: string) {
+  return `/api/project/${props.uuid}/png/${filename}`
+}
+
+function buildMarkedUrl(filename: string) {
+  return `/api/project/${props.uuid}/markedpng/${filename}`
+}
+
+async function ensureCachedUrl(cache: Map<string, string>, key: string, url: string) {
+  const cached = cache.get(key)
+  if (cached) return cached
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('无法获取图片资源')
+  const blob = await res.blob()
+  const objectUrl = URL.createObjectURL(blob)
+  cache.set(key, objectUrl)
+  return objectUrl
+}
+
+async function updateCurrentImages() {
+  if (!pngList.value.length) {
+    currentImageUrl.value = ''
+    currentMarkedUrl.value = ''
+    return
+  }
+  const filename = pngList.value[currentIndex.value]
+  try {
+    currentImageUrl.value = await ensureCachedUrl(pngCache, filename, buildPngUrl(filename))
+  } catch (err) {
+    console.error(err)
+    currentImageUrl.value = buildPngUrl(filename)
+  }
+
+  if (canToggleMark.value && showMarked.value) {
+    const markedFilename = toMarkedFilename(filename)
+    try {
+      currentMarkedUrl.value = await ensureCachedUrl(
+        markedCache,
+        markedFilename,
+        buildMarkedUrl(markedFilename),
+      )
+    } catch (err) {
+      console.error(err)
+      currentMarkedUrl.value = buildMarkedUrl(markedFilename)
+    }
+  } else {
+    currentMarkedUrl.value = ''
+  }
+}
+
+function revokeCache(cache: Map<string, string>) {
+  for (const url of cache.values()) {
+    URL.revokeObjectURL(url)
+  }
+  cache.clear()
 }
 
 async function loadConfig() {
@@ -613,16 +758,28 @@ onMounted(async () => {
 
 watch(rawValue, (next) => {
   if (next !== false) loadPngList()
-  if (next !== 'markednpz') showMarked.value = false
+  if (next !== 'markednpz') {
+    showMarked.value = false
+    markFilter.value = 'green'
+  }
 })
 
 watch(pngList, (list) => {
   if (list.length === 0) stopPlay()
+  revokeCache(pngCache)
+  revokeCache(markedCache)
+  updateCurrentImages()
+})
+
+watch([currentIndex, showMarked], () => {
+  updateCurrentImages()
 })
 
 onBeforeUnmount(() => {
   stopPlayTimer()
   stopPolling()
+  revokeCache(pngCache)
+  revokeCache(markedCache)
 })
 </script>
 
@@ -639,11 +796,13 @@ onBeforeUnmount(() => {
 .upload-box.clickable{cursor:pointer}
 .upload-icon{font-size:30px}
 .image-frame{width:512px;height:512px;border-radius:12px;overflow:hidden;background:#0f172a;position:relative;display:flex;align-items:center;justify-content:center}
-.image-frame.cropping .base-image{transform:scale(1.08)}
-.base-image{max-width:100%;max-height:100%;object-fit:contain;transition:transform 180ms ease}
-.mark-image{position:absolute;inset:0;max-width:100%;max-height:100%;object-fit:contain;pointer-events:none}
+.base-image{width:512px;height:512px;object-fit:contain;display:block}
+.mark-layer{position:absolute;inset:0;pointer-events:none}
+.mark-image{width:512px;height:512px;object-fit:contain;display:block}
+.crop-window{position:relative;overflow:hidden;display:flex;align-items:flex-start;justify-content:flex-start}
 .crop-overlay{position:absolute;border:2px solid #38bdf8;box-shadow:0 0 0 9999px rgba(15,23,42,0.55);pointer-events:none}
-.player{display:flex;align-items:center;gap:10px}
+.player{display:flex;align-items:center;gap:10px;margin-left:-8px}
+.slider-label{min-width:40px;font-size:12px;color:#64748b;text-align:right}
 .slider{width:420px}
 .crop-hint{font-size:12px;color:#475569}
 .note{color:#64748b;font-size:13px}
@@ -664,6 +823,10 @@ onBeforeUnmount(() => {
 .file-name{font-size:12px;color:#1f2937;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .file-status{font-size:12px;color:#475569;text-align:right}
 .file-progress :deep(.n-progress){margin:0}
+.mark-filter-label{font-size:12px;color:#64748b}
+.mark-filter-select{min-width:120px}
+.filter-rainbow{animation:mark-hue 2.6s linear infinite}
+@keyframes mark-hue{0%{filter:hue-rotate(0deg) saturate(200%) brightness(1.05)}100%{filter:hue-rotate(360deg) saturate(200%) brightness(1.05)}}
 @media (max-width: 900px){
   .upload-box,.image-frame{width:100%;height:auto;aspect-ratio:1/1}
   .slider{width:100%}

@@ -17,9 +17,6 @@
       <template #header>
         <div class="modal-title">
           <span id="new-project-title">新建项目</span>
-          <n-space>
-            <n-button quaternary size="small" ref="closeBtn" @click="close" aria-label="关闭对话框">✕</n-button>
-          </n-space>
         </div>
       </template>
 
