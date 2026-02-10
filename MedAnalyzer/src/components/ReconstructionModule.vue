@@ -16,10 +16,10 @@
           <span class="recon-tip">【重建会覆盖当前三维结果】</span>
         </n-space>
         <n-space v-if="has3d" size="small" align="center">
-          <n-button size="small" @click="toggleSyncRotate">
+          <n-button v-if="showDual" size="small" @click="toggleSyncRotate">
             {{ syncRotate ? '关闭同步旋转' : '同步旋转' }}
           </n-button>
-          <n-button size="small" @click="toggleSyncZoom">
+          <n-button v-if="showDual" size="small" @click="toggleSyncZoom">
             {{ syncZoom ? '关闭同步缩放' : '同步缩放' }}
           </n-button>
           <n-button size="small" @click="handleDownloadClick">下载模型</n-button>
@@ -339,15 +339,10 @@ async function refreshModule() {
   }
 }
 
-function openRebuildModal() {
+async function openRebuildModal() {
   showRebuildModal.value = true
-  if (!projectConfig.value) {
-    rebuildPhase.value = 'confirm'
-    loadConfig().finally(() => {
-      decideRebuildPhase()
-    })
-    return
-  }
+  rebuildPhase.value = 'confirm'
+  await loadConfig()
   decideRebuildPhase()
 }
 
@@ -869,18 +864,18 @@ onBeforeUnmount(() => {
 .state.error{color:#b91c1c;background:#fef2f2}
 .recon-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .recon-tip{font-size:12px;color:#64748b}
-.recon-display{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
-.recon-display.dual{grid-template-columns:repeat(2,minmax(0,1fr))}
-.viewer-card{border:1px solid rgba(148,163,184,0.35);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff}
+.recon-display{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;justify-items:start}
+.recon-display.dual{grid-template-columns:512px 1fr;gap:16px;align-items:start}
+.viewer-card{border:1px solid rgba(148,163,184,0.35);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px;background:#fff;max-width:512px;width:100%;box-sizing:border-box;margin:0;justify-self:start}
 .viewer-head{display:flex;align-items:center;justify-content:space-between;font-size:13px;color:#1f2937}
 .viewer-meta{font-size:12px;color:#64748b}
-.viewer-canvas{position:relative;height:280px;border-radius:10px;overflow:hidden;border:1px solid rgba(148,163,184,0.4)}
-.viewer-canvas canvas{width:100%;height:100%;display:block;cursor:grab;background:#f8fafc}
+.viewer-canvas{position:relative;height:280px;border-radius:10px;overflow:hidden;border:1px solid rgba(148,163,184,0.4);max-width:512px;width:100%;box-sizing:border-box;margin:0}
+.viewer-canvas canvas{width:100%;height:100%;display:block;cursor:grab;background:#f8fafc;max-width:100%}
 .viewer-canvas canvas:active{cursor:grabbing}
 .viewer-overlay{position:absolute;left:12px;bottom:10px;display:flex;flex-direction:column;gap:4px;font-size:11px;color:#0f172a;background:rgba(255,255,255,0.72);padding:6px 8px;border-radius:6px}
-.recon-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}
-.recon-controls.dual{grid-template-columns:repeat(2,minmax(0,1fr))}
-.control-card{border-radius:12px;border:1px dashed rgba(148,163,184,0.4);padding:12px;background:#f8fafc}
+.recon-controls{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;justify-items:start}
+.recon-controls.dual{grid-template-columns:512px 1fr}
+.control-card{border-radius:12px;border:1px dashed rgba(148,163,184,0.4);padding:12px;background:#f8fafc;max-width:512px;width:100%;box-sizing:border-box;margin:0;justify-self:start}
 .control-title{font-size:13px;color:#1f2937;font-weight:600;margin-bottom:8px}
 .control-actions{display:flex;flex-direction:column;gap:10px}
 .control-slider{display:flex;align-items:center;gap:10px}

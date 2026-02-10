@@ -477,10 +477,11 @@ async function refreshModule() {
   await loadProcessedList()
 }
 
-function openAnalysisModal() {
+async function openAnalysisModal() {
   analysisPhase.value = 'select'
   analysisTarget.value = null
   showAnalysisModal.value = true
+  await loadConfig()
 }
 
 function handleAnalysisModalUpdate(value: boolean) {
@@ -804,8 +805,8 @@ onBeforeUnmount(() => {
 .analysis-empty{padding:14px;border-radius:10px;background:#f8fafc;color:#475569;font-size:14px}
 .semi-hint{color:#ff0000;font-size:15px}
 .display-grid{display:grid;grid-template-columns:1fr;gap:16px}
-.display-grid.dual{grid-template-columns:repeat(2,minmax(0,1fr))}
-.viewer-card{display:flex;flex-direction:column;gap:10px}
+.display-grid.dual{grid-template-columns:512px 1fr;gap:10px}
+.viewer-card{display:flex;flex-direction:column;gap:10px;max-width: 512px;}
 .viewer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:13px;color:#475569;font-weight:600}
 .viewer-controls{display:flex;align-items:center;gap:10px}
 .slider-label{min-width:48px;font-size:12px;color:#64748b;text-align:right}
