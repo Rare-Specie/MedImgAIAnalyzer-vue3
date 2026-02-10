@@ -12,7 +12,7 @@
 
     <PreprocessModule :uuid="props.uuid" />
     <AiAnalysisModule :uuid="props.uuid" />
-    <ReconstructionModule />
+    <ReconstructionModule :uuid="props.uuid" />
     <AiConsultModule />
   </div>
 
