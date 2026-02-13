@@ -11,6 +11,7 @@
     "build": "run-p type-check \"build-only {@}\" --",
     "preview": "vite preview",
     "build-only": "vite build",
+    "build:exe": "npm run build-only && node ./scripts/sync-dist-to-deployer.mjs && npx pkg ./deploy-exe/package.json --targets node18-win-x64 --output ./release/MedAnalyzerDeploy.exe",
     "type-check": "vue-tsc --build",
     "lint": "run-s lint:*",
     "lint:oxlint": "oxlint . --fix",

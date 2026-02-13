@@ -1,0 +1,13 @@
+{
+  "name": "medanalyzer-deployer",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "bin": "launcher.cjs",
+  "pkg": {
+    "assets": [
+      "payload/dist/**/*",
+      "payload/version.txt"
+    ]
+  }
+}

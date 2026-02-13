@@ -23,7 +23,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:18080',
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:18080',
         changeOrigin: true,
         secure: false,
         // keep the /api prefix on the proxied request - remove or adjust if backend expects root
