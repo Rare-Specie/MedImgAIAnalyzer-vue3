@@ -126,7 +126,7 @@
               <n-radio-button value="png">PNG序列</n-radio-button>
               <n-radio-button value="npz">NPZ序列</n-radio-button>
               <n-radio-button value="markednpz">带有标注信息的NPZ序列</n-radio-button>
-              <n-radio-button value="nii">NII单文件</n-radio-button>
+              <n-radio-button value="nii">NII文件</n-radio-button>
               <n-radio-button value="dcm">DCM序列</n-radio-button>
             </n-space>
           </n-radio-group>
@@ -134,14 +134,13 @@
         <p class="hint">【只有带有标注信息的NPZ序列才能使用Ai推理与人工标注的比较功能】</p>
         <div class="upload-row">
           <n-button size="small" type="primary" @click="triggerFilePicker" :disabled="uploading">上传文件</n-button>
-          <span class="sub-hint">可以一次选择多个文件(NII除外）</span>
         </div>
         <input
           ref="fileInput"
           type="file"
           class="hidden-input"
           :accept="fileAccept"
-          :multiple="allowMultiple"
+          multiple
           @change="handleFilesSelected"
         />
 
@@ -179,7 +178,7 @@
         </div>
       </template>
       <div class="modal-body">
-        每个项目仅可初始化一次，请务必确定全部上传完后再点击确定，否则需要重新新建项目
+        每个项目仅可初始化一次，请务必确定全部上传完后再点击确定，否则需要重新新建项目<br>（初始化需要一段时间，请耐心等待）
       </div>
       <template #footer>
         <n-space justify="end">
@@ -286,7 +285,6 @@ const showCropHint = computed(() =>
   !isCropping.value && projectConfig.value ? projectConfig.value.semi === true : false,
 )
 
-const allowMultiple = computed(() => selectedType.value !== 'nii')
 const fileAccept = computed(() => {
   if (selectedType.value === 'png') return '.png'
   if (selectedType.value === 'npz' || selectedType.value === 'markednpz') return '.npz'

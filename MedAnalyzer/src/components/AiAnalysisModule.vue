@@ -487,24 +487,28 @@ async function openAnalysisModal() {
 function handleAnalysisModalUpdate(value: boolean) {
   if (analysisPhase.value === 'running') return
   showAnalysisModal.value = value
+  if (!value) {
+    void refreshModule()
+  }
 }
 
 function closeAnalysisModal() {
   showAnalysisModal.value = false
-  if (analysisPhase.value === 'done') {
-    refreshModule()
-  }
+  void refreshModule()
 }
 
 async function startAnalysis(mode: AnalysisMode) {
   analysisPhase.value = 'running'
   analysisTarget.value = mode
   try {
-    await fetch(`/api/project/${props.uuid}/start_analysis`, {
+    const res = await fetch(`/api/project/${props.uuid}/start_analysis`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ mode }),
     })
+    if (!res.ok) {
+      throw new Error(`启动分析失败：${res.status}`)
+    }
     startAnalysisPolling()
   } catch (err) {
     console.error(err)
